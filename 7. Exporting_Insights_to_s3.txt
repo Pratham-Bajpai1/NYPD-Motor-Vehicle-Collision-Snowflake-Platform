@@ -1,0 +1,31 @@
+-- 1 unload insight 1
+COPY INTO @nypd_external_stage/output/insight_top_5_days/data_
+FROM INSIGHT_TOP_5_DAYS
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+HEADER = TRUE;
+
+COPY INTO @nypd_external_stage/output/insight_top_5_days_parquet/data_
+FROM INSIGHT_TOP_5_DAYS
+FILE_FORMAT = (TYPE = 'PARQUET');
+
+-- 2. unload insight 2
+COPY INTO @nypd_external_stage/output/insight_borough_peaks/data_
+FROM INSIGHT_BOROUGH_PEAKS
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+HEADER = TRUE;
+
+COPY INTO @nypd_external_stage/output/insight_borough_peaks_parquet/data_
+FROM INSIGHT_BOROUGH_PEAKS
+FILE_FORMAT = (TYPE = 'PARQUET');
+
+-- 3. unload insight 3
+COPY INTO @nypd_external_stage/output/insight_top_vehicles/data_
+FROM INSIGHT_TOP_VEHICLES
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+HEADER = TRUE;
+
+COPY INTO @nypd_external_stage/output/insight_top_vehicles_parquet/data_
+FROM INSIGHT_TOP_VEHICLES
+FILE_FORMAT = (TYPE = 'PARQUET');
+
+

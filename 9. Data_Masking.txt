@@ -1,0 +1,129 @@
+-- Requirement:
+-- create role ANALYST
+-- mask column STATE_REGISTRATION
+-- show real value only for ANALYST
+-- show ********* for others
+
+
+-- creating MV-Collisions-Vehicle table
+CREATE OR REPLACE TABLE MV_COLLISIONS_VEHICLE (
+    UNIQUE_ID INT PRIMARY KEY,
+    COLLISION_ID INT, -- foreign key to nvd_collision_crash table
+    ACCIDENT_DATE DATE,
+    ACCIDENT_TIME TIME,
+    VEHICLE_ID STRING,
+    STATE_REGISTRATION STRING,
+    VEHICLE_TYPE STRING,
+    VEHICLE_MAKE STRING,
+    VEHICLE_MODEL STRING,
+    VEHICLE_YEAR INT,
+    TRAVEL_DIRECTION STRING,
+    VEHICLE_OCCUPANTS INT,
+    DRIVER_SEX STRING,
+    DRIVER_LICENSE_STATUS STRING,
+    DRIVER_LICENSE_JURISDICTION STRING,
+    PRE_ACDNT_ACTION STRING,
+    POINT_OF_IMPACT STRING,
+    VEHICLE_DAMAGE STRING,
+    VEHICLE_DAMAGE_1 STRING,
+    VEHICLE_DAMAGE_2 STRING,
+    VEHICLE_DAMAGE_3 STRING,
+    PUBLIC_PROPERTY_DAMAGE STRING,
+    PUBLIC_PROPERTY_DAMAGE_TYPE STRING,
+    CONTRIBUTING_FACTOR_1 STRING,
+    CONTRIBUTING_FACTOR_2 STRING
+);
+
+
+-- inserting sample data into vehicle table
+INSERT INTO MV_COLLISIONS_VEHICLE VALUES
+(1, 4455765, '2021-09-11', '14:30:00', 'V1001', 'NY', 'Sedan', 'Toyota', 'Camry', 2018, 
+ 'North', 2, 'M', 'Licensed', 'NYPD', 'Going Straight', 
+ 'Front', 'Front-End', 'Left Side', NULL, NULL, 
+ 'No', NULL, 'Driver Inattention/Distraction', NULL),
+
+(2, 4455766, '2021-09-11', '09:15:00', 'V1002', 'CA', 'SUV', 'Honda', 'CR-V', 2020, 
+ 'South', 4, 'F', 'Licensed', 'NYPD', 'Turning Left', 
+ 'Rear', 'Rear-End', NULL, NULL, NULL, 
+ 'Yes', 'Traffic Signal', 'Following Too Closely', NULL),
+
+(3, 4455767, '2021-09-12', '18:45:00', 'V1003', 'TX', 'Truck', 'Ford', 'F-150', 2019, 
+ 'East', 1, 'M', 'Unlicensed', 'MTA', 'Backing', 
+ 'Side', 'Side Impact', 'Rear', NULL, NULL, 
+ 'No', NULL, 'Unsafe Lane Changing', NULL),
+
+(4, 4455768, '2021-09-13', '22:10:00', 'V1004', 'FL', 'Taxi', 'Toyota', 'Prius', 2017, 
+ 'West', 3, 'M', 'Licensed', 'Port Authority', 'Making Right Turn', 
+ 'Front', 'Front-End', NULL, NULL, NULL, 
+ 'Yes', 'Light Post', 'Failure to Yield Right-of-Way', NULL),
+
+(5, 4455769, '2021-09-14', '07:25:00', 'V1005', 'NJ', 'Bus', 'Volvo', '7700', 2015, 
+ 'North', 20, 'M', 'Licensed', 'MTA', 'Going Straight', 
+ 'Front', 'Front-End', 'Right Side', NULL, NULL, 
+ 'No', NULL, 'Driver Inattention/Distraction', NULL),
+
+(6, 4455770, '2021-09-15', '16:50:00', 'V1006', 'PA', 'Motorcycle', 'Yamaha', 'R15', 2021, 
+ 'South', 1, 'M', 'Licensed', 'NYPD', 'Passing', 
+ 'Side', 'Side Impact', NULL, NULL, NULL, 
+ 'No', NULL, 'Unsafe Speed', NULL),
+
+(7, 4455771, '2021-09-16', '11:05:00', 'V1007', 'NY', 'Sedan', 'Hyundai', 'Elantra', 2016, 
+ 'East', 2, 'F', 'Licensed', 'NYPD', 'Stopping', 
+ 'Rear', 'Rear-End', NULL, NULL, NULL, 
+ 'Yes', 'Fence', 'Following Too Closely', NULL),
+
+(8, 4455772, '2021-09-17', '19:40:00', 'V1008', 'TX', 'SUV', 'Ford', 'Explorer', 2022, 
+ 'West', 5, 'M', 'Licensed', 'MTA', 'Changing Lanes', 
+ 'Side', 'Side Impact', 'Left Side', NULL, NULL, 
+ 'No', NULL, 'Unsafe Lane Changing', NULL);
+
+SELECT * FROM MV_COLLISIONS_VEHICLE;
+
+
+
+USE ROLE ACCOUNTADMIN; -- for creating role
+
+CREATE OR REPLACE ROLE ANALYST;
+
+-- granting access
+GRANT USAGE ON DATABASE NYPD_COLLISIONS_DB TO ROLE ANALYST;
+GRANT USAGE ON SCHEMA NYPD_COLLISIONS_SCHEMA TO ROLE ANALYST;
+
+GRANT SELECT ON TABLE MV_COLLISIONS_VEHICLE TO ROLE ANALYST;
+
+-- grant usage on our warehouse so the role can run queries
+GRANT USAGE ON WAREHOUSE NYPD_COLLISIONS_WH TO ROLE ANALYST;
+
+-- assigning the role to myself as user, so i can switch into it to test
+-- Replace 'YOUR_USER_NAME' with your actual Snowflake username
+SET MY_USER = CURRENT_USER();
+GRANT ROLE ANALYST TO USER IDENTIFIER($MY_USER);
+
+
+
+-- creating masking policy, if role = ANALYST then show real value, else - mask
+CREATE OR REPLACE MASKING POLICY state_registration_mask AS (val string) 
+  RETURNS string ->
+  CASE
+    WHEN CURRENT_ROLE() = 'ANALYST' THEN val
+    ELSE '*********'
+  END;
+
+-- apply masking policy to state_registration column
+ALTER TABLE MV_COLLISIONS_VEHICLE 
+MODIFY COLUMN STATE_REGISTRATION 
+SET MASKING POLICY state_registration_mask;
+
+
+-- testing
+-- check as ACCOUNTADMIN
+USE ROLE ACCOUNTADMIN;
+
+SELECT VEHICLE_ID, STATE_REGISTRATION, VEHICLE_TYPE 
+FROM MV_COLLISIONS_VEHICLE;
+
+-- Check as ANALYST
+USE ROLE ANALYST;
+
+SELECT VEHICLE_ID, STATE_REGISTRATION, VEHICLE_TYPE 
+FROM MV_COLLISIONS_VEHICLE;

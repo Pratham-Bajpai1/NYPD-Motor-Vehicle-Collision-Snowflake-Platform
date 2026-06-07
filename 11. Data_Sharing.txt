@@ -1,0 +1,95 @@
+-- Requirement:
+-- Share selected columns of MV-Collisions – Vehicle
+-- With Other Snowflake accounts
+-- Sharing with people who do not have a Snowflake account (this is done using a Reader Account).
+
+
+-- part 1: secure data sharing (snowflake → snowflake)
+
+-- creating secure view
+USE ROLE ACCOUNTADMIN;
+
+CREATE OR REPLACE SECURE VIEW VEHICLE_DATA_FOR_SHARE_VIEW AS
+SELECT 
+    VEHICLE_ID,
+    STATE_REGISTRATION, -- masking policy will still applied
+    VEHICLE_TYPE,
+    VEHICLE_MAKE,
+    VEHICLE_MODEL,
+    VEHICLE_YEAR,
+    TRAVEL_DIRECTION,
+    VEHICLE_OCCUPANTS,
+    DRIVER_SEX,
+    DRIVER_LICENSE_STATUS,
+    DRIVER_LICENSE_JURISDICTION,
+    PRE_ACDNT_ACTION
+FROM MV_COLLISIONS_VEHICLE;
+
+
+-- creating share object
+CREATE OR REPLACE SHARE NYPD_VEHICLE_SHARE;
+
+-- granting usuage
+GRANT USAGE ON DATABASE NYPD_COLLISIONS_DB TO SHARE NYPD_VEHICLE_SHARE;
+GRANT USAGE ON SCHEMA NYPD_COLLISIONS_SCHEMA TO SHARE NYPD_VEHICLE_SHARE;
+
+-- grant access to share
+GRANT SELECT ON VIEW VEHICLE_DATA_FOR_SHARE_VIEW TO SHARE NYPD_VEHICLE_SHARE;
+
+
+SELECT CURRENT_ACCOUNT(), CURRENT_REGION();
+
+
+-- part 1: secure data sharing (snowflake → snowflake)
+
+-- adding consumer account
+ALTER SHARE NYPD_VEHICLE_SHARE 
+ADD ACCOUNTS = AAPOWPO-NH2395;
+
+-- seeing currently sharing with:
+SHOW SHARES;
+
+DESC SHARE NYPD_VEHICLE_SHARE;
+
+-- consumer side
+SHOW SHARES;
+
+CREATE DATABASE NYPD_SHARED_DB
+FROM SHARE <provider_account>.NYPD_VEHICLE_SHARE;
+
+-- query data
+SELECT * FROM NYPD_SHARED_DB.NYPD_COLLISIONS_SCHEMA.VEHICLE_DATA_FOR_SHARE_VIEW;
+
+
+
+
+-- part 2: sharing with non snowflake users (reader account)
+
+-- creating reader account
+CREATE MANAGED ACCOUNT NYPD_READER_ACC
+  ADMIN_NAME = 'READER_ADMIN',
+  ADMIN_PASSWORD = 'Password12345678!',
+  TYPE = READER,
+  COMMENT = 'Reader account for non-Snowflake users to view NYPD data';
+
+
+SHOW MANAGED ACCOUNTS;
+-- reader account url - https://pazzrdr-nypd_reader_acc.snowflakecomputing.com/console/login,  https://ljmxiwanypd_reader_acc.snowflakecomputing.com/console/login
+
+-- adding reader account in share object
+ALTER SHARE NYPD_VEHICLE_SHARE 
+ADD ACCOUNTS = AC59136;
+
+
+-- validation
+SHOW GRANTS OF SHARE NYPD_VEHICLE_SHARE;
+
+-- checking share is active
+SHOW SHARES LIKE 'NYPD_VEHICLE_SHARE';
+
+DESC SHARE NYPD_VEHICLE_SHARE;
+
+SELECT CURRENT_ORGANIZATION_NAME() || '.' || CURRENT_ACCOUNT_NAME();
+
+SELECT CURRENT_ACCOUNT();
+

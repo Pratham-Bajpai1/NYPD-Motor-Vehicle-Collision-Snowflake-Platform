@@ -1,0 +1,89 @@
+-- query the data directly from the parquet files, just uploaded to S3. (fixing this)
+
+CREATE OR REPLACE FILE FORMAT nypd_parquet_format
+  TYPE = 'PARQUET';
+
+  
+-- checking the parquet keys structure
+SELECT $1 
+FROM @nypd_external_stage/output/insight_top_5_days_parquet/
+(FILE_FORMAT => 'nypd_parquet_format')
+LIMIT 5;
+
+
+SELECT $1 
+FROM @nypd_external_stage/output/insight_borough_peaks_parquet/
+(FILE_FORMAT => 'nypd_parquet_format')
+LIMIT 5;
+
+
+SELECT $1 
+FROM  @nypd_external_stage/output/insight_top_vehicles_parquet/
+(FILE_FORMAT => 'nypd_parquet_format')
+LIMIT 5;
+
+
+
+-- validate parquet files (querying directly from s3)
+-- 1 validate top 5 days parquet
+SELECT 
+    $1:_COL_0::DATE as ACCIDENT_DATE,
+    $1:_COL_1::TEXT as BOROUGH,
+    $1:_COL_2::TEXT as VEHICLE_TYPE,
+    $1:_COL_3::INT as ACCIDENT_COUNT
+FROM @nypd_external_stage/output/insight_top_5_days_parquet/
+(FILE_FORMAT => 'nypd_parquet_format');
+
+
+-- 2 validate borough peaks parquet
+SELECT 
+    $1:_COL_0::TEXT as BOROUGH,
+    $1:_COL_1::DATE as ACCIDENT_DATE,
+    $1:_COL_2::INT as ACCIDENT_COUNT
+FROM @nypd_external_stage/output/insight_borough_peaks_parquet/
+(FILE_FORMAT => 'nypd_parquet_format');
+
+
+-- 3 validate top vehicles parquet
+SELECT 
+    $1:_COL_0::TEXT as VEHICLE_TYPE,
+    $1:_COL_1::INT as ACCIDENT_COUNT
+FROM @nypd_external_stage/output/insight_top_vehicles_parquet/
+(FILE_FORMAT => 'nypd_parquet_format');
+
+
+
+-- load parquet data into snowflake tables
+CREATE OR REPLACE TABLE PARQUET_FINAL_TOP_5_DAYS AS
+SELECT 
+    $1:_COL_0::DATE as ACCIDENT_DATE,
+    $1:_COL_1::TEXT as BOROUGH,
+    $1:_COL_2::TEXT as VEHICLE_TYPE,
+    $1:_COL_3::INT as ACCIDENT_COUNT
+FROM @nypd_external_stage/output/insight_top_5_days_parquet/
+(FILE_FORMAT => 'nypd_parquet_format');
+
+SELECT * FROM PARQUET_FINAL_TOP_5_DAYS;
+
+
+CREATE OR REPLACE TABLE PARQUET_FINAL_BOROUGH_PEAKS AS
+SELECT 
+    $1:_COL_0::TEXT as BOROUGH,
+    $1:_COL_1::DATE as ACCIDENT_DATE,
+    $1:_COL_2::INT as ACCIDENT_COUNT
+FROM @nypd_external_stage/output/insight_borough_peaks_parquet/
+(FILE_FORMAT => 'nypd_parquet_format');
+
+SELECT * FROM PARQUET_FINAL_BOROUGH_PEAKS;
+
+
+
+CREATE OR REPLACE TABLE PARQUET_FINAL_TOP_VEHICLES AS
+SELECT 
+    $1:_COL_0::TEXT as VEHICLE_TYPE,
+    $1:_COL_1::INT as ACCIDENT_COUNT
+FROM @nypd_external_stage/output/insight_top_vehicles_parquet/
+(FILE_FORMAT => 'nypd_parquet_format');
+
+SELECT * FROM PARQUET_FINAL_TOP_VEHICLES;
+

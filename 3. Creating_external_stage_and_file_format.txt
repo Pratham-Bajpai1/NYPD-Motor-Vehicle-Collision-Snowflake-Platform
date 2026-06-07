@@ -1,0 +1,19 @@
+CREATE OR REPLACE FILE FORMAT nypd_csv_format
+    TYPE = 'CSV'
+    FIELD_DELIMITER = ','
+    SKIP_HEADER = 1
+    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+    NULL_IF = ('NULL', 'null', '');
+
+
+CREATE OR REPLACE STAGE nypd_external_stage
+    URL = 's3://nypd-collision-data-pratham/'
+    STORAGE_INTEGRATION = s3_nypd_integration
+    FILE_FORMAT = nypd_csv_format;
+
+
+LIST @nypd_external_stage;    
+
+
+-- Compute the total number of rows (Sub-task a.1)
+SELECT COUNT(*) FROM @nypd_external_stage/nypd-motor-vehicle-collisions.csv;
